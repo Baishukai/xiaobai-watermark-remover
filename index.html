@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小白AI图片去水印</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%236366f1'/><stop offset='100%25' style='stop-color:%238b5cf6'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>✨</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            line-height: 1.2;
+        }
+
+        .logo-emoji {
+            font-size: 1.2em;
+            margin-right: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        /* 模式切换 */
+        .mode-switch {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .mode-btn {
+            padding: 12px 24px;
+            border: 2px solid #6366f1;
+            border-radius: 25px;
+            background: white;
+            color: #6366f1;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-btn:hover {
+            background: #f0f4ff;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .mode-btn .icon {
+            font-size: 1.2em;
+        }
+
+        .upload-area {
+            border: 3px dashed #6366f1;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: #4f46e5;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #4f46e5;
+            background: #e0e7ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #6366f1;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        /* 画笔工具栏 */
+        .brush-toolbar {
+            display: none;
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .brush-toolbar.visible {
+            display: flex;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toolbar-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .brush-size-slider {
+            width: 120px;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .brush-size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+        }
+
+        .tool-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tool-btn:hover {
+            border-color: #6366f1;
+            background: #f0f4ff;
+        }
+
+        .tool-btn.active {
+            border-color: #6366f1;
+            background: #6366f1;
+            color: white;
+        }
+
+        .tool-btn.danger {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .tool-btn.danger:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        /* 编辑器容器 */
+        .editor-container {
+            display: none;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .editor-container.visible {
+            display: block;
+        }
+
+        .canvas-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 100%;
+        }
+
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        #imageCanvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            cursor: crosshair;
+            /* 不设置 max-width/max-height，让 JS 完全控制尺寸 */
+        }
+
+        #maskCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            border-radius: 10px;
+            /* 不设置 max-width/max-height，让 JS 完全控制尺寸 */
+        }
+
+        .editor-hint {
+            text-align: center;
+            color: #666;
+            margin-top: 15px;
+            font-size: 0.95em;
+        }
+
+        .editor-hint .highlight {
+            color: #6366f1;
+            font-weight: 600;
+        }
+
+        /* 检测结果提示 */
+        .detection-result {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .detection-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #0369a1;
+            font-weight: 500;
+        }
+
+        .detection-icon {
+            font-size: 1.4em;
+        }
+
+        /* 水印区域标记样式 - 可拖拽调整（蓝紫色调） */
+        .watermark-overlay {
+            position: absolute;
+            border: 3px solid #8b5cf6;
+            background: rgba(139, 92, 246, 0.15);
+            border-radius: 8px;
+            cursor: move;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 20px rgba(139, 92, 246, 0.4);
+            min-width: 30px;
+            min-height: 30px;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .watermark-overlay:hover {
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 30px rgba(139, 92, 246, 0.6);
+        }
+
+        .watermark-label {
+            position: absolute;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        /* 拖拽手柄 */
+        .resize-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: 2px solid white;
+            border-radius: 4px;
+            z-index: 10;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .resize-handle:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transform: scale(1.2);
+            box-shadow: 0 3px 8px rgba(99, 102, 241, 0.4);
+        }
+
+        .resize-handle.top-left {
+            top: -7px;
+            left: -7px;
+            cursor: nwse-resize;
+        }
+
+        .resize-handle.top-right {
+            top: -7px;
+            right: -7px;
+            cursor: nesw-resize;
+        }
+
+        .resize-handle.bottom-left {
+            bottom: -7px;
+            left: -7px;
+            cursor: nesw-resize;
+        }
+
+        .resize-handle.bottom-right {
+            bottom: -7px;
+            right: -7px;
+            cursor: nwse-resize;
+        }
+
+        .resize-handle.top {
+            top: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .resize-handle.bottom {
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .resize-handle.left {
+            left: -7px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
+        .resize-handle.right {
+            right: -7px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
+        /* 尺寸显示 */
+        .size-indicator {
+            position: absolute;
+            bottom: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(99, 102, 241, 0.9);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+        }
+
+        .preview-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .preview-box {
+            text-align: center;
+        }
+
+        .preview-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .preview-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .mode-switch {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .brush-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar-group {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="logo-emoji">✨</span> 小白AI图片去水印</h1>
+        <p class="subtitle">支持自动检测或手动标记水印区域</p>
+
+        <div class="error" id="errorMsg"></div>
+        <div class="success" id="successMsg"></div>
+
+        <!-- 模式切换 -->
+        <div class="mode-switch">
+            <button class="mode-btn active" id="autoModeBtn" data-mode="auto">
+                <span class="icon">🤖</span>
+                <span>自动模式</span>
+            </button>
+            <button class="mode-btn" id="manualModeBtn" data-mode="manual">
+                <span class="icon">🖌️</span>
+                <span>手动擦除</span>
+            </button>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">点击上传或拖拽图片到此处</div>
+            <div class="upload-hint">支持 JPG、PNG 格式 | 也可以直接粘贴图片</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <!-- 画笔工具栏 -->
+        <div class="brush-toolbar" id="brushToolbar">
+            <div class="toolbar-group">
+                <span class="toolbar-label">画笔大小:</span>
+                <input type="range" class="brush-size-slider" id="brushSize" min="5" max="100" value="30">
+                <span id="brushSizeValue">30px</span>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn active" id="brushBtn">
+                    <span>🖌️</span>
+                    <span>画笔</span>
+                </button>
+                <button class="tool-btn" id="eraserBtn">
+                    <span>🧹</span>
+                    <span>橡皮擦</span>
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn danger" id="clearMaskBtn">
+                    <span>🗑️</span>
+                    <span>清除标记</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 编辑器容器（自动模式和手动模式共用） -->
+        <div class="editor-container" id="editorContainer">
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="imageCanvas"></canvas>
+                    <canvas id="maskCanvas"></canvas>
+                </div>
+            </div>
+            <p class="editor-hint" id="editorHint">
+                <span class="highlight">提示：</span>用画笔涂抹需要去除的水印区域，然后点击"开始去水印"
+            </p>
+            <!-- 自动模式的检测结果提示 -->
+            <div class="detection-result" id="detectionResult" style="display: none;">
+                <div class="detection-info">
+                    <span class="detection-icon">🎯</span>
+                    <span>已检测到水印区域 | <strong>可拖拽边框调整位置和大小</strong> | 确认后点击"开始去水印"</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="processBtn" disabled>开始去水印</button>
+            <button class="btn btn-secondary" id="resetBtn">重置</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>正在使用 AI 处理中，请稍候...</div>
+        </div>
+
+        <div class="preview-container" id="previewContainer" style="display: none;">
+            <div class="preview-box">
+                <div class="preview-title">原始图片</div>
+                <img id="originalImage" class="preview-image" alt="原始图片">
+            </div>
+            <div class="preview-box">
+                <div class="preview-title">处理后图片</div>
+                <img id="processedImage" class="preview-image" alt="处理后图片">
+                <button class="download-btn" id="downloadBtn">下载图片</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM 元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const originalImage = document.getElementById('originalImage');
+        const processedImage = document.getElementById('processedImage');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        const successMsg = document.getElementById('successMsg');
+        const previewContainer = document.getElementById('previewContainer');
+        
+        // 模式切换
+        const autoModeBtn = document.getElementById('autoModeBtn');
+        const manualModeBtn = document.getElementById('manualModeBtn');
+        
+        // 画笔工具
+        const brushToolbar = document.getElementById('brushToolbar');
+        const editorContainer = document.getElementById('editorContainer');
+        const imageCanvas = document.getElementById('imageCanvas');
+        const maskCanvas = document.getElementById('maskCanvas');
+        const brushSize = document.getElementById('brushSize');
+        const brushSizeValue = document.getElementById('brushSizeValue');
+        const brushBtn = document.getElementById('brushBtn');
+        const eraserBtn = document.getElementById('eraserBtn');
+        const clearMaskBtn = document.getElementById('clearMaskBtn');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+
+        // 状态变量
+        let currentFile = null;
+        let processedImageBlob = null;
+        let currentMode = 'auto'; // 'auto' 或 'manual'
+        let isDrawing = false;
+        let currentTool = 'brush'; // 'brush' 或 'eraser'
+        let imageObj = null;
+        let canvasScale = 1;
+        let detectedWatermark = null;  // 保存检测到的水印区域
+        let watermarkOverlay = null;   // 水印标记 DOM 元素
+        let customWatermarkRegion = null;  // 用户调整后的水印区域（原始坐标）
+        let currentAbortController = null;  // 用于中止进行中的请求
+
+        // 拖拽状态
+        let isDragging = false;
+        let isResizing = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let overlayStartX = 0;
+        let overlayStartY = 0;
+        let overlayStartWidth = 0;
+        let overlayStartHeight = 0;
+        let currentResizeHandle = null;
+
+        // Canvas 上下文
+        let imgCtx = null;
+        let maskCtx = null;
+        
+        // 新增 DOM 元素
+        const editorHint = document.getElementById('editorHint');
+        const detectionResult = document.getElementById('detectionResult');
+        const canvasContainer = document.getElementById('canvasContainer');
+
+        // 显示错误消息
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+            successMsg.style.display = 'none';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 5000);
+        }
+
+        // 显示成功消息
+        function showSuccess(message) {
+            successMsg.textContent = message;
+            successMsg.style.display = 'block';
+            errorMsg.style.display = 'none';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+        }
+
+        // 模式切换
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // 更新按钮状态
+            autoModeBtn.classList.toggle('active', mode === 'auto');
+            manualModeBtn.classList.toggle('active', mode === 'manual');
+            
+            // 更新界面
+            if (mode === 'manual') {
+                brushToolbar.classList.add('visible');
+                removeWatermarkOverlay(); // 手动模式不显示自动检测的标记
+                if (imageObj) {
+                    editorContainer.classList.add('visible');
+                    uploadArea.style.display = 'none';
+                }
+            } else {
+                brushToolbar.classList.remove('visible');
+                // 自动模式也显示编辑器容器来展示检测结果
+                if (imageObj) {
+                    editorContainer.classList.add('visible');
+                    uploadArea.style.display = 'none';
+                    // 如果已有检测结果，显示标记
+                    if (detectedWatermark) {
+                        showWatermarkOverlay(
+                            detectedWatermark.watermark_region,
+                            detectedWatermark.image_size
+                        );
+                    }
+                } else if (currentFile) {
+                    uploadArea.style.display = 'none';
+                } else {
+                    uploadArea.style.display = 'block';
+                }
+            }
+            
+            // 更新提示信息
+            updateEditorHint();
+            
+            // 清除手动模式的 mask
+            if (mode === 'auto' && maskCtx) {
+                maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            }
+        }
+
+        autoModeBtn.addEventListener('click', () => switchMode('auto'));
+        manualModeBtn.addEventListener('click', () => switchMode('manual'));
+
+        // 画笔大小更新
+        brushSize.addEventListener('input', (e) => {
+            brushSizeValue.textContent = e.target.value + 'px';
+        });
+
+        // 工具切换
+        brushBtn.addEventListener('click', () => {
+            currentTool = 'brush';
+            brushBtn.classList.add('active');
+            eraserBtn.classList.remove('active');
+        });
+
+        eraserBtn.addEventListener('click', () => {
+            currentTool = 'eraser';
+            eraserBtn.classList.add('active');
+            brushBtn.classList.remove('active');
+        });
+
+        // 清除标记
+        clearMaskBtn.addEventListener('click', () => {
+            if (maskCtx) {
+                maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            }
+        });
+
+        // 中止当前进行中的请求
+        function abortCurrentRequest() {
+            if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+                console.log('[Abort] Current request aborted');
+            }
+        }
+
+        // 检测水印区域
+        async function detectWatermark(file) {
+            // 中止之前的请求
+            abortCurrentRequest();
+            
+            // 创建新的 AbortController
+            currentAbortController = new AbortController();
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/detect-watermark', {
+                    method: 'POST',
+                    body: formData,
+                    signal: currentAbortController.signal
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '检测失败');
+                }
+                
+                const result = await response.json();
+                console.log('[Detect] Watermark detected:', result);
+                currentAbortController = null;
+                return result;
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('[Detect] Request was aborted');
+                    return null;
+                }
+                console.error('[Detect] Error:', error);
+                showError('水印检测失败：' + error.message);
+                currentAbortController = null;
+                return null;
+            }
+        }
+
+        // 显示水印区域标记（可拖拽调整）
+        function showWatermarkOverlay(watermarkRegion, imageSize) {
+            // 移除旧的标记
+            removeWatermarkOverlay();
+            
+            if (!watermarkRegion || !imageObj) return;
+            
+            // 计算缩放后的坐标
+            const displayWidth = imageCanvas.width;
+            const displayHeight = imageCanvas.height;
+            const scaleX = displayWidth / imageSize.width;
+            const scaleY = displayHeight / imageSize.height;
+            
+            const x = watermarkRegion.x1 * scaleX;
+            const y = watermarkRegion.y1 * scaleY;
+            const width = watermarkRegion.width * scaleX;
+            const height = watermarkRegion.height * scaleY;
+            
+            // 创建水印标记元素
+            watermarkOverlay = document.createElement('div');
+            watermarkOverlay.className = 'watermark-overlay';
+            watermarkOverlay.style.left = x + 'px';
+            watermarkOverlay.style.top = y + 'px';
+            watermarkOverlay.style.width = width + 'px';
+            watermarkOverlay.style.height = height + 'px';
+            
+            // 添加标签
+            const label = document.createElement('div');
+            label.className = 'watermark-label';
+            label.textContent = '拖拽调整区域';
+            watermarkOverlay.appendChild(label);
+            
+            // 添加尺寸指示器
+            const sizeIndicator = document.createElement('div');
+            sizeIndicator.className = 'size-indicator';
+            sizeIndicator.id = 'sizeIndicator';
+            updateSizeIndicator(sizeIndicator, watermarkRegion.width, watermarkRegion.height);
+            watermarkOverlay.appendChild(sizeIndicator);
+            
+            // 添加8个拖拽手柄
+            const handles = ['top-left', 'top', 'top-right', 'left', 'right', 'bottom-left', 'bottom', 'bottom-right'];
+            handles.forEach(pos => {
+                const handle = document.createElement('div');
+                handle.className = `resize-handle ${pos}`;
+                handle.dataset.handle = pos;
+                watermarkOverlay.appendChild(handle);
+            });
+            
+            canvasContainer.appendChild(watermarkOverlay);
+            
+            // 初始化自定义区域（原始坐标）
+            customWatermarkRegion = {
+                x1: watermarkRegion.x1,
+                y1: watermarkRegion.y1,
+                x2: watermarkRegion.x1 + watermarkRegion.width,
+                y2: watermarkRegion.y1 + watermarkRegion.height,
+                width: watermarkRegion.width,
+                height: watermarkRegion.height
+            };
+            
+            // 绑定拖拽事件
+            bindOverlayEvents();
+            
+            console.log(`[Overlay] Displayed at (${x.toFixed(1)}, ${y.toFixed(1)}), size: ${width.toFixed(1)}x${height.toFixed(1)}`);
+        }
+
+        // 更新尺寸显示
+        function updateSizeIndicator(element, width, height) {
+            element.textContent = `${Math.round(width)} × ${Math.round(height)} px`;
+        }
+
+        // 绑定拖拽事件
+        function bindOverlayEvents() {
+            if (!watermarkOverlay) return;
+            
+            // 移动整个区域
+            watermarkOverlay.addEventListener('mousedown', onOverlayMouseDown);
+            
+            // 拖拽手柄事件
+            const handles = watermarkOverlay.querySelectorAll('.resize-handle');
+            handles.forEach(handle => {
+                handle.addEventListener('mousedown', onHandleMouseDown);
+            });
+            
+            // 全局事件
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        // 点击水印区域开始拖拽
+        function onOverlayMouseDown(e) {
+            if (e.target.classList.contains('resize-handle')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            overlayStartX = parseFloat(watermarkOverlay.style.left);
+            overlayStartY = parseFloat(watermarkOverlay.style.top);
+        }
+
+        // 点击手柄开始调整大小
+        function onHandleMouseDown(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            isResizing = true;
+            currentResizeHandle = e.target.dataset.handle;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            overlayStartX = parseFloat(watermarkOverlay.style.left);
+            overlayStartY = parseFloat(watermarkOverlay.style.top);
+            overlayStartWidth = parseFloat(watermarkOverlay.style.width);
+            overlayStartHeight = parseFloat(watermarkOverlay.style.height);
+        }
+
+        // 鼠标移动
+        function onMouseMove(e) {
+            if (!isDragging && !isResizing) return;
+            
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+            
+            if (isDragging) {
+                // 移动区域
+                let newX = overlayStartX + dx;
+                let newY = overlayStartY + dy;
+                
+                // 边界限制
+                const maxX = imageCanvas.width - parseFloat(watermarkOverlay.style.width);
+                const maxY = imageCanvas.height - parseFloat(watermarkOverlay.style.height);
+                newX = Math.max(0, Math.min(newX, maxX));
+                newY = Math.max(0, Math.min(newY, maxY));
+                
+                watermarkOverlay.style.left = newX + 'px';
+                watermarkOverlay.style.top = newY + 'px';
+            } else if (isResizing) {
+                // 调整大小
+                let newX = overlayStartX;
+                let newY = overlayStartY;
+                let newWidth = overlayStartWidth;
+                let newHeight = overlayStartHeight;
+                
+                const minSize = 30;
+                
+                // 根据手柄位置调整
+                if (currentResizeHandle.includes('left')) {
+                    newWidth = overlayStartWidth - dx;
+                    if (newWidth >= minSize) {
+                        newX = overlayStartX + dx;
+                    } else {
+                        newWidth = minSize;
+                    }
+                }
+                if (currentResizeHandle.includes('right')) {
+                    newWidth = overlayStartWidth + dx;
+                    if (newWidth < minSize) newWidth = minSize;
+                }
+                if (currentResizeHandle.includes('top')) {
+                    newHeight = overlayStartHeight - dy;
+                    if (newHeight >= minSize) {
+                        newY = overlayStartY + dy;
+                    } else {
+                        newHeight = minSize;
+                    }
+                }
+                if (currentResizeHandle.includes('bottom')) {
+                    newHeight = overlayStartHeight + dy;
+                    if (newHeight < minSize) newHeight = minSize;
+                }
+                
+                // 边界限制
+                if (newX < 0) { newWidth += newX; newX = 0; }
+                if (newY < 0) { newHeight += newY; newY = 0; }
+                if (newX + newWidth > imageCanvas.width) newWidth = imageCanvas.width - newX;
+                if (newY + newHeight > imageCanvas.height) newHeight = imageCanvas.height - newY;
+                
+                watermarkOverlay.style.left = newX + 'px';
+                watermarkOverlay.style.top = newY + 'px';
+                watermarkOverlay.style.width = newWidth + 'px';
+                watermarkOverlay.style.height = newHeight + 'px';
+                
+                // 更新尺寸显示（转换为原始尺寸）
+                const scaleX = imageObj.width / imageCanvas.width;
+                const scaleY = imageObj.height / imageCanvas.height;
+                const sizeIndicator = document.getElementById('sizeIndicator');
+                if (sizeIndicator) {
+                    updateSizeIndicator(sizeIndicator, newWidth * scaleX, newHeight * scaleY);
+                }
+            }
+        }
+
+        // 鼠标释放
+        function onMouseUp(e) {
+            if (isDragging || isResizing) {
+                // 更新自定义区域坐标（转换为原始尺寸）
+                updateCustomWatermarkRegion();
+            }
+            isDragging = false;
+            isResizing = false;
+            currentResizeHandle = null;
+        }
+
+        // 更新自定义水印区域（原始坐标）
+        function updateCustomWatermarkRegion() {
+            if (!watermarkOverlay || !imageObj) return;
+            
+            const scaleX = imageObj.width / imageCanvas.width;
+            const scaleY = imageObj.height / imageCanvas.height;
+            
+            const x = parseFloat(watermarkOverlay.style.left) * scaleX;
+            const y = parseFloat(watermarkOverlay.style.top) * scaleY;
+            const width = parseFloat(watermarkOverlay.style.width) * scaleX;
+            const height = parseFloat(watermarkOverlay.style.height) * scaleY;
+            
+            customWatermarkRegion = {
+                x1: Math.round(x),
+                y1: Math.round(y),
+                x2: Math.round(x + width),
+                y2: Math.round(y + height),
+                width: Math.round(width),
+                height: Math.round(height)
+            };
+            
+            console.log('[Custom Region] Updated:', customWatermarkRegion);
+        }
+
+        // 移除水印区域标记
+        function removeWatermarkOverlay() {
+            if (watermarkOverlay) {
+                watermarkOverlay.remove();
+                watermarkOverlay = null;
+            }
+            customWatermarkRegion = null;
+            isDragging = false;
+            isResizing = false;
+        }
+
+        // 更新提示信息
+        function updateEditorHint() {
+            if (currentMode === 'manual') {
+                editorHint.innerHTML = '<span class="highlight">提示：</span>用画笔涂抹需要去除的水印区域，然后点击"开始去水印"';
+                editorHint.style.display = 'block';
+                detectionResult.style.display = 'none';
+            } else {
+                editorHint.style.display = 'none';
+                if (detectedWatermark) {
+                    detectionResult.style.display = 'block';
+                } else {
+                    detectionResult.style.display = 'none';
+                }
+            }
+        }
+
+        // 初始化画布
+        function initCanvas(img) {
+            imageObj = img;
+            
+            // 计算画布尺寸（限制最大尺寸）
+            const containerWidth = canvasWrapper.clientWidth || window.innerWidth - 100;
+            const maxWidth = Math.min(containerWidth - 40, 900);
+            const maxHeight = 550;
+            
+            let displayWidth = img.width;
+            let displayHeight = img.height;
+            
+            // 按比例缩放
+            if (displayWidth > maxWidth) {
+                displayHeight = displayHeight * (maxWidth / displayWidth);
+                displayWidth = maxWidth;
+            }
+            if (displayHeight > maxHeight) {
+                displayWidth = displayWidth * (maxHeight / displayHeight);
+                displayHeight = maxHeight;
+            }
+            
+            // 取整，避免模糊
+            displayWidth = Math.round(displayWidth);
+            displayHeight = Math.round(displayHeight);
+            
+            canvasScale = img.width / displayWidth;
+            
+            // 设置画布的内部尺寸（绘图尺寸）
+            imageCanvas.width = displayWidth;
+            imageCanvas.height = displayHeight;
+            maskCanvas.width = displayWidth;
+            maskCanvas.height = displayHeight;
+            
+            // 设置样式尺寸（显示尺寸）- 与内部尺寸保持一致
+            imageCanvas.style.width = displayWidth + 'px';
+            imageCanvas.style.height = displayHeight + 'px';
+            maskCanvas.style.width = displayWidth + 'px';
+            maskCanvas.style.height = displayHeight + 'px';
+            
+            // 绘制图片
+            imgCtx = imageCanvas.getContext('2d');
+            imgCtx.clearRect(0, 0, displayWidth, displayHeight);
+            imgCtx.drawImage(img, 0, 0, displayWidth, displayHeight);
+            
+            // 初始化 mask 画布
+            maskCtx = maskCanvas.getContext('2d');
+            maskCtx.clearRect(0, 0, displayWidth, displayHeight);
+            
+            console.log(`Canvas initialized: ${displayWidth}x${displayHeight}, scale: ${canvasScale}`);
+        }
+
+        // 获取画布坐标
+        function getCanvasCoords(e) {
+            const rect = imageCanvas.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            // 计算鼠标在 Canvas 内的相对位置
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            
+            // 考虑 Canvas 的显示尺寸和内部尺寸的比例
+            // 如果 CSS 改变了 Canvas 的显示大小，需要进行缩放转换
+            const scaleX = imageCanvas.width / rect.width;
+            const scaleY = imageCanvas.height / rect.height;
+            
+            return {
+                x: x * scaleX,
+                y: y * scaleY
+            };
+        }
+
+        // 绘制
+        function draw(e) {
+            if (!isDrawing || !maskCtx) return;
+            e.preventDefault();
+            
+            const coords = getCanvasCoords(e);
+            const size = parseInt(brushSize.value);
+            
+            // 确保坐标在有效范围内
+            if (coords.x < 0 || coords.y < 0 || 
+                coords.x > maskCanvas.width || coords.y > maskCanvas.height) {
+                return;
+            }
+            
+            maskCtx.beginPath();
+            maskCtx.arc(coords.x, coords.y, size / 2, 0, Math.PI * 2);
+            
+            if (currentTool === 'brush') {
+                maskCtx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                maskCtx.fill();
+            } else {
+                maskCtx.globalCompositeOperation = 'destination-out';
+                maskCtx.fill();
+                maskCtx.globalCompositeOperation = 'source-over';
+            }
+        }
+
+        // 画布事件
+        imageCanvas.addEventListener('mousedown', (e) => {
+            if (currentMode !== 'manual') return;
+            e.preventDefault();
+            isDrawing = true;
+            draw(e);
+        });
+
+        imageCanvas.addEventListener('mousemove', (e) => {
+            if (currentMode !== 'manual') return;
+            draw(e);
+        });
+        
+        imageCanvas.addEventListener('mouseup', (e) => {
+            isDrawing = false;
+        });
+
+        imageCanvas.addEventListener('mouseleave', (e) => {
+            isDrawing = false;
+        });
+
+        // 触摸事件支持
+        imageCanvas.addEventListener('touchstart', (e) => {
+            if (currentMode !== 'manual') return;
+            e.preventDefault();
+            isDrawing = true;
+            draw(e);
+        });
+
+        imageCanvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e);
+        });
+
+        imageCanvas.addEventListener('touchend', () => {
+            isDrawing = false;
+        });
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // 粘贴上传
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    handleFile(blob);
+                    showSuccess('已从剪贴板粘贴图片');
+                    break;
+                }
+            }
+        });
+
+        // 处理文件
+        async function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('请上传图片文件！');
+                return;
+            }
+
+            currentFile = file;
+            detectedWatermark = null;  // 重置检测结果
+            removeWatermarkOverlay();
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                // 设置预览图
+                originalImage.src = e.target.result;
+                
+                // 加载图片到画布
+                const img = new Image();
+                img.onload = async () => {
+                    initCanvas(img);
+                    
+                    // 显示编辑器容器
+                    editorContainer.classList.add('visible');
+                    uploadArea.style.display = 'none';
+                    
+                    // 根据模式显示界面
+                    if (currentMode === 'manual') {
+                        brushToolbar.classList.add('visible');
+                    } else {
+                        // 自动模式：检测水印
+                        loading.style.display = 'block';
+                        loading.querySelector('div:last-child').textContent = '正在检测水印位置...';
+                        
+                        try {
+                            const result = await detectWatermark(file);
+                            if (result && result.success) {
+                                detectedWatermark = result;
+                                showWatermarkOverlay(result.watermark_region, result.image_size);
+                                showSuccess('已检测到水印区域，请确认后点击"开始去水印"');
+                            }
+                        } catch (error) {
+                            console.error('Detection error:', error);
+                        }
+                        
+                        loading.style.display = 'none';
+                        loading.querySelector('div:last-child').textContent = '正在使用 AI 处理中，请稍候...';
+                    }
+                    
+                    // 更新提示信息
+                    updateEditorHint();
+                    
+                    processedImage.src = '';
+                    downloadBtn.style.display = 'none';
+                    processBtn.disabled = false;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 获取 mask 数据
+        function getMaskDataURL() {
+            if (!maskCtx || currentMode !== 'manual') {
+                return null;
+            }
+            
+            // 检查是否有绘制内容（检查 maskCanvas 的 alpha 通道）
+            const maskImageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+            let hasContent = false;
+            for (let i = 3; i < maskImageData.data.length; i += 4) {
+                if (maskImageData.data[i] > 0) {
+                    hasContent = true;
+                    break;
+                }
+            }
+            
+            if (!hasContent) {
+                console.log('[Mask] No content drawn');
+                return null;
+            }
+            
+            // 创建纯黑白 mask（白色表示需要去除的区域）
+            // 使用原始图片尺寸
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = imageObj.width;
+            tempCanvas.height = imageObj.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // 填充黑色背景
+            tempCtx.fillStyle = 'black';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // 将 maskCanvas 缩放绘制到 tempCanvas
+            // 先设置混合模式，然后绘制
+            tempCtx.drawImage(maskCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // 获取绘制后的数据，转换为纯黑白
+            const data = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            for (let i = 0; i < data.data.length; i += 4) {
+                // 检查红色通道（画笔是红色 rgba(255, 0, 0, 0.5)）
+                // 绘制到黑色背景上后，红色区域的 R 值会 > 0
+                const r = data.data[i];
+                const g = data.data[i + 1];
+                const b = data.data[i + 2];
+                
+                // 如果有红色成分（画笔标记的区域），设置为白色
+                if (r > 20 || g > 20 || b > 20) {
+                    data.data[i] = 255;     // R
+                    data.data[i + 1] = 255; // G
+                    data.data[i + 2] = 255; // B
+                } else {
+                    data.data[i] = 0;       // R
+                    data.data[i + 1] = 0;   // G
+                    data.data[i + 2] = 0;   // B
+                }
+                data.data[i + 3] = 255;     // A - 完全不透明
+            }
+            tempCtx.putImageData(data, 0, 0);
+            
+            console.log(`[Mask] Generated mask: ${tempCanvas.width}x${tempCanvas.height}`);
+            return tempCanvas.toDataURL('image/png');
+        }
+
+        // 处理图片
+        processBtn.addEventListener('click', async () => {
+            if (!currentFile) {
+                showError('请先上传图片！');
+                return;
+            }
+
+            // 手动模式检查是否有标记
+            if (currentMode === 'manual') {
+                const maskDataURL = getMaskDataURL();
+                if (!maskDataURL) {
+                    showError('请先用画笔标记需要去除的水印区域！');
+                    return;
+                }
+            }
+
+            loading.style.display = 'block';
+            loading.querySelector('div:last-child').textContent = '正在使用 AI 处理中，请稍候...';
+            processBtn.disabled = true;
+            errorMsg.style.display = 'none';
+            
+            // 显示预览容器
+            previewContainer.style.display = 'grid';
+            
+            // 隐藏编辑器和检测提示
+            detectionResult.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('mode', currentMode);
+            
+            // 如果是手动模式，添加 mask 数据
+            if (currentMode === 'manual') {
+                const maskDataURL = getMaskDataURL();
+                if (maskDataURL) {
+                    formData.append('mask', maskDataURL);
+                }
+            }
+            
+            // 如果是自动模式且用户调整了区域，发送自定义坐标
+            if (currentMode === 'auto' && customWatermarkRegion) {
+                formData.append('custom_region', JSON.stringify(customWatermarkRegion));
+                console.log('[Process] Using custom region:', customWatermarkRegion);
+            }
+
+            // 中止之前的请求
+            abortCurrentRequest();
+            currentAbortController = new AbortController();
+
+            try {
+                const response = await fetch('/api/remove-watermark', {
+                    method: 'POST',
+                    body: formData,
+                    signal: currentAbortController.signal
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '处理失败');
+                }
+
+                processedImageBlob = await response.blob();
+                const imageUrl = URL.createObjectURL(processedImageBlob);
+                processedImage.src = imageUrl;
+                downloadBtn.style.display = 'inline-block';
+                showSuccess('水印去除成功！');
+                
+                // 隐藏编辑器，只显示结果对比
+                editorContainer.classList.remove('visible');
+                removeWatermarkOverlay();
+                currentAbortController = null;
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('[Process] Request was aborted');
+                    return;
+                }
+                showError('处理失败：' + error.message);
+            } finally {
+                loading.style.display = 'none';
+                processBtn.disabled = false;
+                currentAbortController = null;
+            }
+        });
+
+        // 下载图片
+        downloadBtn.addEventListener('click', () => {
+            if (processedImageBlob) {
+                const url = URL.createObjectURL(processedImageBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                const filename = currentFile.name || 'image.png';
+                a.download = 'processed_' + filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        // 重置
+        resetBtn.addEventListener('click', () => {
+            // 中止正在进行的请求
+            abortCurrentRequest();
+            
+            // 隐藏加载状态
+            loading.style.display = 'none';
+            
+            currentFile = null;
+            processedImageBlob = null;
+            imageObj = null;
+            detectedWatermark = null;
+            fileInput.value = '';
+            originalImage.src = '';
+            processedImage.src = '';
+            previewContainer.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            processBtn.disabled = true;
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+            uploadArea.style.display = 'block';
+            editorContainer.classList.remove('visible');
+            detectionResult.style.display = 'none';
+            
+            // 移除水印标记
+            removeWatermarkOverlay();
+            
+            // 清空画布
+            if (imgCtx) {
+                imgCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+            }
+            if (maskCtx) {
+                maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            }
+        });
+    </script>
+</body>
+</html>

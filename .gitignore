@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# 虚拟环境
+venv/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 临时文件
+uploads/*
+outputs/*
+!uploads/.gitkeep
+!outputs/.gitkeep
+
+# 模型文件（太大，需单独下载）
+models/*.pt
+
+# 构建产物
+*.spec
+version_info.txt
+
+# 测试生成的图片
+test_*.png
+compare_*.png
+diff_*.png
+corner_*.png
+debug_*.png
+*_result.png
+processed-image.png
+watermark_*.png
+edges_*.png
+
+# 其他
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

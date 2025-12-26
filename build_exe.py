@@ -77,10 +77,11 @@ def build_exe():
     
     # PyInstaller 参数
     # 注意: 不使用 --onefile 和 UPX，减少杀毒误报
+    # 使用 --console 显示控制台，避免 stdin/stdout 问题
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--name", OUTPUT_NAME,
-        "--windowed",  # 不显示控制台窗口（改用 --console 如果需要看日志）
+        "--console",  # 显示控制台窗口，用户可以看到日志
         "--noconfirm",
         "--clean",
         "--noupx",  # 不使用 UPX 压缩，减少误报

@@ -8,6 +8,15 @@ import socket
 import threading
 import webbrowser
 import time
+import io
+
+# 修复 PyInstaller --windowed 模式下 stdin/stdout 为 None 的问题
+if sys.stdin is None:
+    sys.stdin = io.StringIO()
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, 'w')
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, 'w')
 
 # 设置环境变量（必须在导入其他模块之前）
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -84,18 +93,46 @@ def main():
         import uvicorn
         from main import app
         
+        # 自定义日志配置，避免 isatty 问题
+        log_config = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s - %(levelname)s - %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S",
+                },
+            },
+            "handlers": {
+                "default": {
+                    "formatter": "default",
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
+                },
+            },
+            "loggers": {
+                "uvicorn": {"handlers": ["default"], "level": "INFO"},
+                "uvicorn.error": {"level": "INFO"},
+                "uvicorn.access": {"handlers": ["default"], "level": "INFO"},
+            },
+        }
+        
         uvicorn.run(
             app,
             host=host,
             port=port,
             log_level="info",
-            access_log=False
+            access_log=False,
+            log_config=log_config
         )
     except KeyboardInterrupt:
         print("\n👋 服务已停止")
     except Exception as e:
         print(f"\n❌ 启动失败: {e}")
-        input("按回车键退出...")
+        try:
+            input("按回车键退出...")
+        except:
+            pass
         sys.exit(1)
 
 
